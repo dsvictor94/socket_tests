@@ -16,9 +16,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#define data_size 10485760
-
-const char *port = "23300";
+int data_size = 0;
+char *port = NULL;
 
 long int counter;
 pthread_mutex_t lock;
@@ -37,6 +36,24 @@ int main(int argc, char *argv[])
 {
   /* The pthread_t type is a struct representing a single thread. */
   pthread_t server_thread, log_thread;
+
+  int opt;
+  while ((opt = getopt(argc, argv, "p:s:")) != -1){
+    switch (opt)
+    {
+      case 'p':
+        port = strdup(optarg);
+        break;
+      case 's':
+        data_size = atoi(strdup(optarg));
+        break;
+      default:
+        printf("Unknown option\n"); exit(1);
+    }
+  }
+  if(port == NULL || data_size == 0){
+    printf("port (-p) and size (-s) required\n"); exit(1);
+  }
 
   /* If a client closes a connection, this will generally produce a SIGPIPE
            signal that will kill the process. We want to ignore this signal, so
@@ -218,7 +235,7 @@ void *accept_clients(void *args)
  */
 void *service_single_client(void *args) {
   struct workerArgs *wa;
-  int socket, nbytes;
+  int socket, nbytes, snbytes;
   char* tosend;
   tosend = malloc(data_size);
 
@@ -232,36 +249,42 @@ void *service_single_client(void *args) {
      so they can be collected by another thread join()-ing this thread) */
   pthread_detach(pthread_self());
 
-  fprintf(stderr, "Socket %d connected\n", socket);
+  long total = 0;
+  // fprintf(stderr, "Socket %d connected\n", socket);
   int i = 0;
   while((nbytes = recv(socket, tosend, data_size, 0)) > 0){
-    if((i = ++i % 5000000) == 0)
-      fprintf(stderr, "%d \n", nbytes);
-    nbytes = send(socket, tosend, nbytes, 0);
-    if (nbytes == -1 && (errno == ECONNRESET || errno == EPIPE))
+    total+=nbytes;
+    snbytes = send(socket, tosend, nbytes, 0);
+
+    if (snbytes == -1 && (errno == ECONNRESET || errno == EPIPE))
     {
       fprintf(stderr, "Socket %d disconnected\n", socket);
       close(socket);
+      free(tosend);
       free(wa);
       pthread_exit(NULL);
     }
-    else if (nbytes == -1)
+    else if (snbytes == -1)
     {
       perror("Unexpected error in send()");
+      close(socket);
+      free(tosend);
       free(wa);
       pthread_exit(NULL);
     }
-
-		 pthread_mutex_lock(&lock);
-		 counter+=nbytes;
-		 pthread_mutex_unlock(&lock);
+    pthread_mutex_lock(&lock);
+    counter+=nbytes;
+    pthread_mutex_unlock(&lock);
   }
 
-  if (nbytes == 0)
-    fprintf(stderr, "Socket %d disconnected\n", socket);
+  if (nbytes == 0) {
+    // fprintf(stderr, "Socket %d disconnected\n", socket);
+  }
   if (nbytes == -1)
     fprintf(stderr, "Socket %d recv() error\n", socket);
 
+  close(socket);
+  free(tosend);
   free(wa);
   pthread_exit(NULL);
 }

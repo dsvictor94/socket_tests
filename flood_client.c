@@ -14,8 +14,6 @@
 #include <errno.h>
 #include <time.h>
 
-#define data_size 10485760
-
 struct workerArgs
 {
   int socket;
@@ -27,6 +25,8 @@ struct workerArgs
 void *read_data(void *args);
 void *write_data(void *args);
 void *log_rate(void *args);
+
+int data_size = 0;
 
 int main(int argc, char *argv[])
 {
@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
   struct workerArgs *wa;
 
   /* Use getopt to fetch the host and port */
-  while ((opt = getopt(argc, argv, "h:p:")) != -1){
+  while ((opt = getopt(argc, argv, "h:p:s:")) != -1){
     switch (opt)
     {
       case 'h':
@@ -58,12 +58,15 @@ int main(int argc, char *argv[])
       case 'p':
         port = strdup(optarg);
         break;
+      case 's':
+        data_size = atoi(strdup(optarg));
+        break;
       default:
         printf("Unknown option\n"); exit(1);
     }
   }
-  if( host == NULL || port == NULL){
-    printf("host and port required\n"); exit(1);
+  if( host == NULL || port == NULL || data_size == 0){
+    printf("host (-h), port (-p) and size (-s) required\n"); exit(1);
   }
 
 

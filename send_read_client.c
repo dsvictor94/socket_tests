@@ -14,8 +14,7 @@
 #include <errno.h>
 #include <time.h>
 
-#define data_size 10485760
-#define num_of_packages 5000
+int data_size = 0, num_of_packages = 0;
 
 int main(int argc, char *argv[])
 {
@@ -39,7 +38,7 @@ int main(int argc, char *argv[])
   int opt;
 
   /* Use getopt to fetch the host and port */
-  while ((opt = getopt(argc, argv, "h:p:")) != -1){
+  while ((opt = getopt(argc, argv, "h:p:s:n:")) != -1){
     switch (opt)
     {
       case 'h':
@@ -48,12 +47,18 @@ int main(int argc, char *argv[])
       case 'p':
         port = strdup(optarg);
         break;
+      case 's':
+        data_size = atoi(strdup(optarg));
+        break;
+      case 'n':
+        num_of_packages = atoi(strdup(optarg));
+        break;
       default:
         printf("Unknown option\n"); exit(1);
     }
   }
-  if( host == NULL || port == NULL){
-    printf("host and port required\n"); exit(1);
+  if( host == NULL || port == NULL || data_size == 0 || num_of_packages == 0){
+    printf("host (-h), port (-p), size (-s) and number of packages (-n) required\n"); exit(1);
   }
 
 
@@ -148,7 +153,7 @@ int main(int argc, char *argv[])
 
   long long total_time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
 
-  printf("avg_round_trip, %d, %d, %f\n", data_size, num_of_packages, round_trip/(num_of_packages*1e9));
+  printf("avg_round_trip, %d, %d, %lld\n", data_size, num_of_packages, round_trip/num_of_packages);
   printf("efficiency, %d, %d, %lld, %lld, %f\n", data_size, num_of_packages, total_time, round_trip, 1.0*round_trip/total_time);
   printf("fragmentation_rate, %d, %d, %d, %f\n", data_size, num_of_packages, read_count, 1.0*read_count/num_of_packages);
   return 0;
